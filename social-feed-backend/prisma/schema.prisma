@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/*
+  User model (already present)
+*/
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  password  String
+  avatarUrl String?
+  bio       String?
+  createdAt DateTime @default(now())
+
+  posts     Post[]      // user's posts
+  likes     Like[]      // likes made by user
+  comments  Comment[]   // comments by user
+  following Follow[]    @relation("following") // relations where this user follows others (followerId)
+  followers Follow[]    @relation("followers") // relations where others follow this user (followingId)
+}
+
+/*
+  Post model
+*/
+model Post {
+  id        Int      @id @default(autoincrement())
+  caption   String?
+  imageUrl  String
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  likes     Like[]     // likes for this post
+  comments  Comment[]  // comments for this post
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+/*
+  Like model
+  - userId + postId as composite unique so a user can like a post only once
+*/
+model Like {
+  id       Int   @id @default(autoincrement())
+  userId   Int
+  postId   Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
+}
+
+/*
+  Comment model
+*/
+model Comment {
+  id        Int      @id @default(autoincrement())
+  text      String
+  userId    Int
+  postId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([userId])
+}
+
+/*
+  Follow model (followerId follows followingId)
+  Use two relations with explicit names to avoid ambiguity.
+*/
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  Int      // who follows
+  followingId Int      // who is followed
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+
